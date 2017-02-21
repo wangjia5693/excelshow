@@ -5,7 +5,7 @@ use PHPExcel_Cell;
 use PHPExcel_Exception;
 use PHPExcel_Worksheet;
 use Illuminate\Support\Collection;
-use Statics\Src\Config;
+use Statics\Config;
 use Excel\Writers\CellWriter;
 use Excel\Exceptions\LaravelExcelException;
 use PHPExcel_Worksheet_PageSetup;

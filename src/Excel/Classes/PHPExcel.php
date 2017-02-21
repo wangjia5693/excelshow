@@ -1,7 +1,7 @@
 <?php namespace Excel\Classes;
 
 use PHPExcel as PHPOffice_PHPExcel;
-use Statics\Src\Config;
+use Statics\Config;
 
 /**
  *

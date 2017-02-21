@@ -9,108 +9,6 @@ Excel::load('file.xls', function($reader) {
 });
 
 
-excelfile注入
-
-
- ExcelFile 类
-
-
-这个类是您的服务器上的文件的包装器，里面的getFile()方法将返回文件名和位置，getFilters()用来过滤，chunk过滤器如下：
-
-
-class UserListImport extends \Maatwebsite\Excel\Files\ExcelFile {
-
-    public function getFile()
-    {
-        return storage_path('exports') . '/file.csv';
-    }
-
-    public function getFilters()
-    {
-        return [
-            'chunk'
-        ];
-    }
-
-}
-
-
- 如果你想动态过滤输入，很容易：
-
-public function getFile()
-{
-    // Import a user provided file
-    $file = Input::file('report');
-    $filename = $this->doSomethingLikeUpload($file);
-
-    // Return it's location
-    return $filename;
-}
-
-
-使用
-
- 可以在__constructor或者方法里注入ExcelFiles（Laravel 5.0可用），等等。控制器：
-
-class ExampleController extends Controller {
-
-    public function importUserList(UserListImport $import)
-    {
-        // get the results
-        $results = $import->get();
-    }
-
-}
-
-
-
- CSV设置
-
- 你可以通过可选的格式设置，如，$delimiter, $enclosure 和 $lineEnding保护属性：
-
-class UserListImport extends \Maatwebsite\Excel\Files\ExcelFile {
-
-    protected $delimiter  = ',';
-    protected $enclosure  = '"';
-    protected $lineEnding = '\r\n';
-
-}
-
-
-
-导入处理程序
-
-
-完全从控制器中分离Excel导入代码，你可以使用导入处理程序。
-
-
-class ExampleController extends Controller {
-
-    public function importUserList(UserListImport $import)
-    {
-        // Handle the import
-        $import->handleImport();
-    }
-
-}
-
-
- 当你的类动附加到Handler时，handleImport()方法会动态调用一个处理类：
-
-class UserListImportHandler implements \Maatwebsite\Excel\Files\ImportHandler {
-
-    public function handle(UserListImport $import)
-    {
-        // get the results
-        $results = $import->get();
-    }
-
-}
-
-
-
-
-
 处理导入结果
 
  得到所有表和行
@@ -348,7 +246,7 @@ $reader->calculate(false);
 
 自定认格式化值
 
- 默认Laravel Excel使用PHPExcel的默认值来智能格式化的单元格值。你可以重写以取代这种行为的粘合，以满足特定需求。值粘合必须有PHPExcel_Cell_IValueBinder和一个bindValue方法。也可以扩展PHPExcel_Cell_DefaultValueBinder返回默认行为。
+ 默认 Excel使用PHPExcel的默认值来智能格式化的单元格值。你可以重写以取代这种行为的粘合，以满足特定需求。值粘合必须有PHPExcel_Cell_IValueBinder和一个bindValue方法。也可以扩展PHPExcel_Cell_DefaultValueBinder返回默认行为。
 
 use PHPExcel_Cell;
 use PHPExcel_Cell_DataType;
@@ -423,40 +321,6 @@ Excel::filter('chunk')->load('file.csv')->chunk(250, function($results)
             // do stuff
         }
 });
-
- ExcelFile 类例子
-
-
- 当用ExcelFile注入时（在构造函数或者方法注入），可以在ExcelFile类里开启块过滤。
-
-class UserListImport extends \Maatwebsite\Excel\Files\ExcelFile {
-
-    public function getFile()
-    {
-        return 'file.csv';
-    }
-
-    public function getFilters()
-    {
-        return [
-            'chunk'
-        ];
-    }
-
-}
-
-
- 注入ExcelFile例子：
-
-
-public function importUserList(UserListImport $import)
-{
-    $import->chunk(250, function($results)
-    {
-        // do stuff
-        // or return true if you want to stop importing.
-    });
-}
 
 
 批量导入

@@ -5,7 +5,7 @@ use Carbon\Carbon;
 use League\Flysystem\Exception;
 use PHPExcel_IOFactory;
 use Illuminate\Filesystem\Filesystem;
-use Statics\Src\Config;
+use Statics\Config;
 use Illuminate\Support\Facades\Response;
 use Excel\Classes\FormatIdentifier;
 use Excel\Classes\LaravelExcelWorksheet;

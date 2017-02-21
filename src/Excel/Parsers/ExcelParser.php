@@ -6,7 +6,7 @@ use PHPExcel_Exception;
 use PHPExcel_Shared_Date;
 use Illuminate\Support\Str;
 use PHPExcel_Style_NumberFormat;
-use Statics\Src\Config;
+use Statics\Config;
 use Excel\Collections\RowCollection;
 use Excel\Collections\CellCollection;
 use Excel\Collections\SheetCollection;
