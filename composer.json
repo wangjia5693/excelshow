@@ -21,7 +21,6 @@
     "phpoffice/phpexcel": "~1.8.0",
     "illuminate/filesystem": "~5.0",
     "illuminate/support": "~5.0",
-    "wj/statics": "2.0",
     "nesbot/carbon": "~1.0"
   },
   "autoload": {
