@@ -1,0 +1,1316 @@
+导入文件
+
+ 要导入一个文件，使用：->load($filename)。配置可选。
+
+Excel::load('file.xls', function($reader) {
+
+    // reader methods
+
+});
+
+
+excelfile注入
+
+
+ ExcelFile 类
+
+
+这个类是您的服务器上的文件的包装器，里面的getFile()方法将返回文件名和位置，getFilters()用来过滤，chunk过滤器如下：
+
+
+class UserListImport extends \Maatwebsite\Excel\Files\ExcelFile {
+
+    public function getFile()
+    {
+        return storage_path('exports') . '/file.csv';
+    }
+
+    public function getFilters()
+    {
+        return [
+            'chunk'
+        ];
+    }
+
+}
+
+
+ 如果你想动态过滤输入，很容易：
+
+public function getFile()
+{
+    // Import a user provided file
+    $file = Input::file('report');
+    $filename = $this->doSomethingLikeUpload($file);
+
+    // Return it's location
+    return $filename;
+}
+
+
+使用
+
+ 可以在__constructor或者方法里注入ExcelFiles（Laravel 5.0可用），等等。控制器：
+
+class ExampleController extends Controller {
+
+    public function importUserList(UserListImport $import)
+    {
+        // get the results
+        $results = $import->get();
+    }
+
+}
+
+
+
+ CSV设置
+
+ 你可以通过可选的格式设置，如，$delimiter, $enclosure 和 $lineEnding保护属性：
+
+class UserListImport extends \Maatwebsite\Excel\Files\ExcelFile {
+
+    protected $delimiter  = ',';
+    protected $enclosure  = '"';
+    protected $lineEnding = '\r\n';
+
+}
+
+
+
+导入处理程序
+
+
+完全从控制器中分离Excel导入代码，你可以使用导入处理程序。
+
+
+class ExampleController extends Controller {
+
+    public function importUserList(UserListImport $import)
+    {
+        // Handle the import
+        $import->handleImport();
+    }
+
+}
+
+
+ 当你的类动附加到Handler时，handleImport()方法会动态调用一个处理类：
+
+class UserListImportHandler implements \Maatwebsite\Excel\Files\ImportHandler {
+
+    public function handle(UserListImport $import)
+    {
+        // get the results
+        $results = $import->get();
+    }
+
+}
+
+
+
+
+
+处理导入结果
+
+ 得到所有表和行
+
+ 加载一个文件后，用->get()像这样得到结果：
+
+
+Excel::load('file.xls', function($reader) {
+
+})->get();
+
+
+ 或者
+
+Excel::load('file.xls', function($reader) {
+
+    // Getting all results
+    $results = $reader->get();
+
+    // ->all() is a wrapper for ->get() and will work the same
+    $results = $reader->all();
+
+});
+
+
+根据文件的数量而定，->get() 和 ->all()将返回表或者行集合，可以在import.php里面设置'force_sheets_collection'为true禁用这个功能。当设置为true时将总是返回一个表集合。
+
+
+
+  表头属性
+
+ 默认excel文件第一行用作表头属性。
+
+// Get the firstname
+$row->firstname;
+
+
+注：默认情况下，这些属性将被转换为一个段塞，在excel::import.heading里可以改变默认内容，可选值有：true|false|slugged|ascii|numeric|hashed|trans|original。当excel::import.to_ascii设置为true时，True 和 slugged 将转换为 ASCII，可以更改默认分隔符以及内部配置。
+
+集合
+
+ 表，行和单元格都是集合，意味着之后可以跟->get()，能使用所有集合默认的方法。
+
+// E.g. group the results
+$reader->get()->groupBy('firstname');
+
+ 获得第一个表或者第一行
+
+ 要获得第一个表或者第一行，可以用->first()。
+
+$reader->first();
+
+注：根据设置'force_sheets_collection'的不同，将返回第一行或者第一个表。
+
+
+  工作薄和表的标题
+
+ 用->getTitle()检索工作薄和表的标题。
+
+// Get workbook title
+$workbookTitle = $reader->getTitle();
+
+foreach($reader as $sheet)
+{
+    // get sheet title
+    $sheetTitle = $sheet->getTitle();
+}
+
+  限制结果
+
+ 抓取行
+
+ 当你只想返回一个表里的X行时，用->take() 或者  ->limit()。
+
+
+// You can either use ->take()
+$reader->take(10);
+
+// Or ->limit()
+$reader->limit(10);
+
+
+ 跳过行
+
+ 当你想跳过一定数量的行，可以用->skip() 或者  ->limit(false, 10)。
+
+// Skip 10 results
+$reader->skip(10);
+
+// Skip 10 results with limit, but return all other rows
+$reader->limit(false, 10);
+
+// Skip and take
+$reader->skip(10)->take(10);
+
+// Limit with skip and take
+$reader->($skip, $take);
+
+   修改结果
+
+ 当你想返回一个数组而不是一个对象时，可以用->toArray()。
+
+$reader->toArray();
+
+ 当你想返回一个对象，可以选择（代替get() 或者 all()）用->toObject()。
+
+$reader->toObject();
+
+   显示结果
+
+ 可以将结果转储到可读输出，使用->dump() 或者  ->dd()。
+
+// Dump the results
+$reader->dump();
+
+// Dump results and die
+$reader->dd();
+
+
+ 迭代结果
+
+ 可以用->each()迭代结果。
+
+
+// Loop through all sheets
+$reader->each(function($sheet) {
+
+    // Loop through all rows
+    $sheet->each(function($row) {
+
+    });
+
+});
+
+另外，也可以用foreach迭代结果。
+
+选择表和列
+
+ 选择一个指定表
+
+ 如果你想选择单个表，可以用->selectSheets($name)，仅仅这个表被载入。
+
+
+Excel::selectSheets('sheet1')->load();
+
+
+ 选择多个表
+
+ 如果你想选择文件里的多个表，通过在参数里传入一个数组。
+
+Excel::selectSheets('sheet1', 'sheet2')->load();
+
+用索引选择表
+
+// First sheet
+Excel::selectSheetsByIndex(0)->load();
+
+// First and second sheet
+Excel::selectSheetsByIndex(0, 1)->load();
+
+
+ 选择列
+
+ 如果只想选择一部分列，可以用->select($columns)或者传入一个数组到->get($columns)的第一个参数。
+
+// Select
+$reader->select(array('firstname', 'lastname'))->get();
+
+// Or
+$reader->get(array('firstname', 'lastname'));
+
+全部 get 方法 (像 all(), first(), dump(), toArray(), ...)接受一个列的数组。
+
+
+日期
+
+ 日期默认被解析为一个Carbon object，可以在import.php里设置dates.enabled 为 false禁用日期格式化编译。
+
+启用/禁用单一导入的日期格式，用->formatDates($boolean, $format)
+
+
+// Format the dates
+$reader->formatDates(true);
+
+// Disable date formatting
+$reader->formatDates(false);
+
+// Format dates + set date format
+$reader->formatDates(true, 'Y-m-d');
+
+
+
+
+ 格式化日期
+
+ 默认状态日期不格式化，但返回一个Carbon对象，这里有一些选项格式化他们。
+
+
+ 在->get()后格式化结果
+
+ 在循环中，你可以利用Carbon方法->format($dateFormat)
+
+
+$rows->each(function($row) {
+
+    $created_at = $row->created_at->format('Y-m-d');
+
+});
+
+ 设置一个默认日期格式
+
+$reader->setDateFormat('Y-m-d');
+
+
+ 设置自定义日期列
+
+ 没有日期格式的单元格将不被解析为日期。强迫这种行为（或者用CSV导入）您可以手动设置这些日期列：->setDateColumns()
+
+$reader->setDateColumns(array(
+    'created_at',
+    'deleted_at'
+))->get();
+
+计算公式
+
+ 默认文件里的公式将被计算且返回结果，在import.php里设置calculate改变默认行为以达到理想状态。
+
+ 如果您想启用/禁用它为一个单一的导入，可以用->calculate($boolean)
+
+// Enable calculation
+$reader->calculate();
+
+// Disable calculation
+$reader->calculate(false);
+
+自定认格式化值
+
+ 默认Laravel Excel使用PHPExcel的默认值来智能格式化的单元格值。你可以重写以取代这种行为的粘合，以满足特定需求。值粘合必须有PHPExcel_Cell_IValueBinder和一个bindValue方法。也可以扩展PHPExcel_Cell_DefaultValueBinder返回默认行为。
+
+use PHPExcel_Cell;
+use PHPExcel_Cell_DataType;
+use PHPExcel_Cell_IValueBinder;
+use PHPExcel_Cell_DefaultValueBinder;
+
+class MyValueBinder extends PHPExcel_Cell_DefaultValueBinder implements PHPExcel_Cell_IValueBinder
+{
+    public function bindValue(PHPExcel_Cell $cell, $value = null)
+    {
+        if (is_numeric($value))
+        {
+            $cell->setValueExplicit($value, PHPExcel_Cell_DataType::TYPE_NUMERIC);
+
+            return true;
+        }
+
+        // else return default behavior
+        return parent::bindValue($cell, $value);
+    }
+}
+
+$myValueBinder = new MyValueBinder;
+
+Excel::setValueBinder($myValueBinder)->load('file.xls', function($reader) {
+
+    // reader methods
+
+});
+
+
+ PHPExcel_Cell_DataType 可用 TYPE_STRING, TYPE_FORMULA, TYPE_NUMERIC, TYPE_BOOL, TYPE_NULL, TYPE_INLINE 和 TYPE_ERROR。
+
+
+
+重置默认的值或者调用Laravel Excel前设置一个自定义粘合，需要调用resetValueBinder方法。
+
+1
+
+Excel::resetValueBinder();
+
+
+
+
+缓存和单元格缓存
+
+ 单元格缓存
+
+ 可以配置cache.php开启单元格缓存，可以在两个动动之间选择和设置，默认开启memory驱动。
+
+
+ 记住结果
+
+ 可以用->remember($minutes)记住结果，下次载入相同的文件（如果它仍然在缓存里），将返回缓存结果。
+
+
+// Remember for 10 minutes
+$results = $reader->remember(10)->get();
+
+
+
+
+导入块
+
+ 处理大文件时，最好导入一大块数据，可以用filter('chunk')开启，要导入块可以用chunk($size, $callback)代替正常的get()。第一个参数是块的尺寸，第二个参数是一个闭包将返回结果。
+
+
+Excel::filter('chunk')->load('file.csv')->chunk(250, function($results)
+{
+        foreach($results as $row)
+        {
+            // do stuff
+        }
+});
+
+ ExcelFile 类例子
+
+
+ 当用ExcelFile注入时（在构造函数或者方法注入），可以在ExcelFile类里开启块过滤。
+
+class UserListImport extends \Maatwebsite\Excel\Files\ExcelFile {
+
+    public function getFile()
+    {
+        return 'file.csv';
+    }
+
+    public function getFilters()
+    {
+        return [
+            'chunk'
+        ];
+    }
+
+}
+
+
+ 注入ExcelFile例子：
+
+
+public function importUserList(UserListImport $import)
+{
+    $import->chunk(250, function($results)
+    {
+        // do stuff
+        // or return true if you want to stop importing.
+    });
+}
+
+
+批量导入
+
+ 导入一个文件夹
+
+ 要导入整个文件夹（仅仅xls, xlsx 和 csv文件会被导入），第一个参数设置为文件夹。
+
+
+Excel::batch('app/storage/uploads', function($rows, $file) {
+
+    // Explain the reader how it should interpret each row,
+    // for every file inside the batch
+    $rows->each(function($row) {
+
+        // Example: dump the firstname
+        dd($row->firstname);
+
+    });
+
+});
+
+
+ 导入多个文件
+
+ 也可以通过指定一个文件数组导入。
+
+
+$files = array(
+    'file1.xls',
+    'file2.xls'
+);
+
+Excel::batch($files, function($rows, $file) {
+
+});
+
+
+ 导入一个文件夹和多个表
+
+ 当文件包含多个表，还应该循环表
+
+Excel::batch('app/storage/uploads', function($sheets, $file) {
+
+    $sheets->each(function($sheet) {
+
+    });
+
+});
+
+
+导入设置
+
+ 当使用高组Excel文件（如，没有任何表头列），这些导入可能比较复杂，->byConfig()将帮助你处理这些问题。
+
+ 在excel::import.sheets里设置的例子：
+
+Excel::load('file.xls')->byConfig('excel::import.sheets', function($sheet) {
+
+    // The firstname getter will correspond with a cell coordinate set inside the config
+    $firstname = $sheet->firstname;
+
+});
+
+注意：如果你用多个表，->byConfig将循环通过所有表，如果getters仅存在其中一个表，可以一直用->selectSheets()。
+
+编辑现有文件
+
+ 你可以编辑现有Excel文件，载入然后改性导出它们。
+
+
+Excel::load('file.csv', function($file) {
+
+    // modify stuff
+
+})->export('csv');
+
+
+转换
+
+ 从一个文件类型转换到另一个文件类型用->convert()
+
+Excel::load('file.csv', function($file) {
+
+    // modify stuff
+
+})->convert('xls');
+
+其他
+
+ 禁止使用第一行作为集合属性
+
+ 默认用文件的第一行作为表头（因此，作为集合的属性名称），可以通过import.php里的import.heading改变。
+
+ 在单个导入里用->noHeading()
+
+$reader->noHeading();
+
+设置单元格名称分隔符
+
+ 通过在第一行列中查找默认集合属性名称，分隔翻译为：_。
+
+ 例如：Created at -> created_at
+
+ 改变import.php里的'separator'改变默认行为，或者可以用->setSeparator($separator)。
+
+$reader->setSeparator('-');
+
+ 忽略空单元格
+
+默认没有忽略空单元格，作为空的单元格集合
+
+要改变这个默认行为，改变import.php里的'ignoreEmpty'或者用->ignoreEmpty()。
+
+$reader->ignoreEmpty();
+
+输入编码
+
+在import.php里设置改变输入编码，大多数情况下UTF-8是最好的选择，当然如果你要确认输出结果是和HTML页面原编码是一致的。
+可以在->load()里传入输入编码
+
+// When utilising a closure, you can pass the input encoding as third parameter.
+Excel::load('filename.csv', function($reader) {
+
+}, 'UTF-8');
+
+// or without a closure, you can use it as second parameter.
+Excel::load('filename.csv', 'UTF-8');
+
+CSV设置
+
+在csv.php文件里，可以修改默认设置，像delimiter,  enclosure 和 line_ending。
+
+##############################################################################
+
+简单导出Excel
+
+ 基础
+
+ 用create方法设置第一个参数是文件名可以创建一个新文件。
+
+Excel::create('Filename');
+
+ 要操作创建的文件可以用回调函数。
+
+Excel::create('Filename', function($excel) {
+
+    // Call writer methods here
+
+});
+
+
+ 改变属性
+
+ 一些属性可以在内置闭包里改变，大多数值是默认设置的，查看 app/config/packages/maatwebsite/excel/config.php。
+
+
+Excel::create('Filename', function($excel) {
+
+    // Set the title
+    $excel->setTitle('Our new awesome title');
+
+    // Chain the setters
+    $excel->setCreator('Maatwebsite')
+          ->setCompany('Maatwebsite');
+
+    // Call them separately
+    $excel->setDescription('A demonstration to change the file properties');
+
+});
+
+自己去参考指南看到可用属性的列表。
+
+
+
+导出
+
+ 下载生成的文件，用->export($ext) 或者 ->download($ext)
+
+
+ 导出Excel5 (xls)
+
+Excel::create('Filename', function($excel) {
+
+})->export('xls');
+
+// or
+->download('xls');
+
+
+ 导出Excel2007 (xlsx)
+
+->export('xlsx');
+
+// or
+->download('xlsx');
+
+
+ 导出CSV
+
+
+->export('csv');
+
+// or
+->download('csv');
+
+
+可以在配置里设置默认外壳和分隔符。
+
+
+ 导出PDF
+
+ 要导出PDF，要在composer.json里包含"dompdf/dompdf": "~0.6.1", "mpdf/mpdf": "~5.7.3" 或者 "tecnick.com/tcpdf": "~6.0.0"，修改export.pdf.driver相应的设置。
+
+1
+
+->export('pdf');
+
+
+
+
+新Excel文件注入
+
+ 自Laravel 5.0后这是个新颖的表单请求注入，这里介绍新Excel文件注入。
+
+
+ 新Excel文件类
+
+ 这个新Excel文件是一个新的Excel文件，在getFilename()里可以声明想要的文件名。
+
+class UserListExport extends \Maatwebsite\Excel\Files\NewExcelFile {
+
+    public function getFilename()
+    {
+        return 'filename';
+    }
+}
+
+
+ 使用
+
+ 可以在__constructor或者方法里注入新Excel文件（使用Laravel 5.0），如这个控制器：
+
+class ExampleController extends Controller {
+
+    public function exportUserList(UserListExport $export)
+    {
+        // work on the export
+        return $export->sheet('sheetName', function($sheet)
+        {
+
+        })->export('xls');
+    }
+
+}
+
+
+
+ 导出处理
+
+ 要完全从控制器解耦Excel导出代码，可以用导出处理，
+
+
+class ExampleController extends Controller {
+
+    public function exportUserList(UserListExport $export)
+    {
+        // Handle the export
+        $export->handleExport();
+    }
+
+}
+
+
+ handleExport()方法会动态调用一个处理类，当类名添加Handler时：
+
+class UserListExportHandler implements \Maatwebsite\Excel\Files\ExportHandler {
+
+    public function handle(UserListExport $export)
+    {
+        // work on the export
+        return $export->sheet('sheetName', function($sheet)
+        {
+
+        })->export('xls');
+    }
+
+}
+
+
+
+
+数据集在服务器
+
+ 用服务器的数据集生成文件，使用 ->store($ext, $path = false, $returnInfo = false) 或者 ->save()。
+
+
+ 正常导出到默认存储路径
+
+ 默认文件会存储到app/storage/exports文件夹，定义在export.php配置文件。
+
+Excel::create('Filename', function($excel) {
+
+    // Set sheets
+
+})->store('xls');
+
+
+
+  正常导出到自定义存储路径
+
+ 如果想使用自定义存储路径（例如每个客户单独的文件），可以在第二个参数设置文件夹，
+
+1
+
+->store('xls', storage_path('excel/exports'));
+
+
+ 存储和导出
+
+1
+
+->store('xls')->export('xls');
+
+
+ 存储和返回存储信息
+
+ 如果想返回存储信息，设置第三个参数为true，或者在配置export.php里改变。
+
+1
+
+->store('xls', false, true);
+
+    Key 解释
+    full 完整路径和文件名
+    path 不包含文件名的路径
+    file 文件名
+    title 文件标题
+    ext 文件扩展名
+
+
+确保存储文件夹可写。
+
+
+
+表
+
+ 生成一个表
+
+ 在我们新创建的文件里生成一个表，用->sheet('Sheetname')。
+
+Excel::create('Filename', function($excel) {
+
+    $excel->sheet('Sheetname', function($sheet) {
+
+        // Sheet manipulation
+
+    });
+
+})->export('xls');
+
+
+ 生成多个表
+
+ 要在文件里设置多个表。
+
+Excel::create('Filename', function($excel) {
+
+    // Our first sheet
+    $excel->sheet('First sheet', function($sheet) {
+
+    });
+
+    // Our second sheet
+    $excel->sheet('Second sheet', function($sheet) {
+
+    });
+
+})->export('xls');
+
+
+ 修改属性
+
+ 里面有几个属性我们可以改变，他们中的大多数有默认的配置值。查看 app/config/packages/maatwebsite/excel/config.php。
+
+Excel::create('Filename', function($excel) {
+
+    $excel->sheet('Sheetname', function($sheet) {
+
+        $sheet->setOrientation('landscape');
+
+    });
+
+})->export('xls');
+
+
+
+自己去参考指南看到可用属性的列表。
+
+
+ 默认页边距
+
+ 可以设置默认页面边缘内的配置文件excel::export.sheets。它接受布尔、单值或数组。
+
+ 可以使用手动设置页面：->setPageMargin()
+
+// Set top, right, bottom, left
+$sheet->setPageMargin(array(
+    0.25, 0.30, 0.25, 0.30
+));
+
+// Set all margins
+$sheet->setPageMargin(0.25);
+
+
+
+ 密码保护表
+
+ 表可以用$sheet->protect()设置密码保护：
+
+
+// Default protect
+$sheet->protect('password');
+
+// Advanced protect
+$sheet->protect('password', function(\PHPExcel_Worksheet_Protection $protection) {
+    $protection->setSort(true);
+});
+
+
+
+
+
+从一个数组生成表
+
+ 数组
+
+ 从一个数组生成新文件用：->fromArray($source, $nullValue, $startCell, $strictNullComparison, $headingGeneration)表内闭包：
+
+Excel::create('Filename', function($excel) {
+
+    $excel->sheet('Sheetname', function($sheet) {
+
+        $sheet->fromArray(array(
+            array('data1', 'data2'),
+            array('data3', 'data4')
+        ));
+
+    });
+
+})->export('xls');
+
+
+ 另外可以用：->with()
+
+$sheet->with(array(
+    array('data1', 'data2'),
+    array('data3', 'data4')
+));
+
+
+ 如果想传递属性到闭包，用use($data)
+
+$data = array(
+    array('data1', 'data2'),
+    array('data3', 'data4')
+);
+
+Excel::create('Filename', function($excel) use($data) {
+
+    $excel->sheet('Sheetname', function($sheet) use($data) {
+
+        $sheet->fromArray($data);
+
+    });
+
+})->export('xls');
+
+
+
+ 空比较
+
+ 默认0显示为空单元格，如果要改变，传递true到第4个参数：
+
+// Will show 0 as 0
+$sheet->fromArray($data, null, 'A1', true);
+
+
+
+要改变默认行为，可以用excel::export.sheets.strictNullComparison设置。
+
+
+
+Eloquent模型
+它也可以传递一个Eloquent模型且导出用->fromModel($model)。与fromArray方法一样接受相同的参数。
+
+
+自动生成表头
+
+默认导出用数组的键（或者模型属性名）作为第一行（表头列）。要改变可以编辑默认配置（excel::export.generate_heading_by_indices）或者传递false到第5个参数。
+
+// Won't auto generate heading columns
+$sheet->fromArray($data, null, 'A1', false, false);
+
+
+处理（操作）行
+
+ 处理部分行
+
+ 改变单元格值
+
+// Manipulate first row
+$sheet->row(1, array(
+     'test1', 'test2'
+));
+
+// Manipulate 2nd row
+$sheet->row(2, array(
+    'test3', 'test4'
+));
+
+
+ 处理一行单元格
+
+// 设置黑色背景
+$sheet->row(1, function($row) {
+
+    // 设用单元格处理方法
+    $row->setBackground('#000000');
+
+});
+
+
+ 插入行
+
+// 在第2行后插入
+$sheet->appendRow(2, array(
+    'appended', 'appended'
+));
+
+// 插入最后
+$sheet->appendRow(array(
+    'appended', 'appended'
+));
+
+
+ 添加一行
+
+
+// 添加到第1行前
+$sheet->prependRow(1, array(
+    'prepended', 'prepended'
+));
+
+// 添加到最前面
+$sheet->prependRow(array(
+    'prepended', 'prepended'
+));
+
+
+
+添加多行
+
+// 添加多行
+$sheet->rows(array(
+    array('test1', 'test2'),
+    array('test3', 'test4')
+));
+
+// 添加多行
+$sheet->rows(array(
+    array('test5', 'test6'),
+    array('test7', 'test8')
+));
+
+
+
+
+
+处理（操作）单元格
+
+$sheet->cell('A1', function($cell) {
+
+    // manipulate the cell
+
+});
+
+$sheet->cells('A1:A5', function($cells) {
+
+    // manipulate the range of cells
+
+});
+
+
+
+ 设置背景
+
+ 改变单元格背景用：->setBackground($color, $type, $colorType)
+
+// 设置黑色背景
+$cells->setBackground('#000000');
+
+
+ 改变字体
+/ Set with font color
+$cells->setFontColor('#ffffff');
+
+// Set font family
+$cells->setFontFamily('Calibri');
+
+// Set font size
+$cells->setFontSize(16);
+
+// Set font weight to bold
+$cells->setFontWeight('bold');
+
+// Set font
+$cells->setFont(array(
+    'family'     => 'Calibri',
+    'size'       => '16',
+    'bold'       =>  true
+));
+
+
+
+ 设置边框
+
+// Set all borders (top, right, bottom, left)
+$cells->setBorder('solid', 'none', 'none', 'solid');
+
+// Set borders with array
+$cells->setBorder(array(
+    'borders' => array(
+        'top'   => array(
+            'style' => 'solid'
+        ),
+    )
+));
+
+
+
+ 设置水平对齐
+
+// Set alignment to center
+$cells->setAlignment('center');
+
+ 设置垂直对齐
+
+// Set vertical alignment to middle
+ $cells->setValignment('middle');
+
+
+表格样式
+
+ 如果你想要改变的一般样式表（不是特定的单元格或范围），用->setStyle()方法：
+
+// Set font with ->setStyle()`
+$sheet->setStyle(array(
+    'font' => array(
+        'name'      =>  'Calibri',
+        'size'      =>  15,
+        'bold'      =>  true
+    )
+));
+
+
+
+ 字体
+
+要改变当前表的字体用：->setFont($array)
+
+$sheet->setFont(array(
+    'family'     => 'Calibri',
+    'size'       => '15',
+    'bold'       => true
+));
+
+
+ 分开设置
+
+// Font family
+$sheet->setFontFamily('Comic Sans MS');
+
+// Font size
+$sheet->setFontSize(15);
+
+// Font bold
+$sheet->setFontBold(true);
+
+
+ 边框
+
+ 设置表边框，用：
+
+// 设置所有边框
+$sheet->setAllBorders('thin');
+
+// 设置单元格边框
+$sheet->setBorder('A1', 'thin');
+
+// 指定范围边框
+$sheet->setBorder('A1:F10', 'thin');
+
+自己去参考指南看到可用边框样式的列表。
+
+冻结行
+
+ 如果想冻结一个单元格，行或者列，用：
+
+// Freeze first row
+$sheet->freezeFirstRow();
+
+// Freeze the first column
+$sheet->freezeFirstColumn();
+
+// Freeze the first row and column
+$sheet->freezeFirstRowAndColumn();
+
+// Set freeze
+$sheet->setFreeze('A2');
+
+
+
+自动过滤
+
+ 开启自动过滤用：->setAutoFilter($range = false)
+
+// Auto filter for entire sheet
+$sheet->setAutoFilter();
+
+// Set auto filter for a range
+$sheet->setAutoFilter('A1:E10');
+
+
+单元格尺寸
+ 设置列宽
+ 要设置列宽用：->setWidth($cell, $width)
+
+// Set width for a single column
+$sheet->setWidth('A', 5);
+
+// Set width for multiple cells
+$sheet->setWidth(array(
+    'A'     =>  5,
+    'B'     =>  10
+));
+
+
+ 设置行高
+
+ 设置行高：->setHeight($row, $height)
+
+// Set height for a single row
+$sheet->setHeight(1, 50);
+
+// Set height for multiple rows
+$sheet->setHeight(array(
+    1     =>  50,
+    2     =>  25
+));
+
+
+ 设置单元格尺寸
+
+ 设置单元格尺寸用：->setSize($cell, $width, $height)
+
+// Set size for a single cell
+$sheet->setSize('A1', 500, 50);
+
+$sheet->setSize(array(
+    'A1' => array(
+        'width'     => 50
+        'height'    => 500,
+    )
+));
+
+
+自动大小
+
+ 默认情况下导出的文件被自动设置大小，要改变这种行为可以改变配置或使用setter
+
+// Set auto size for sheet
+$sheet->setAutoSize(true);
+
+// Disable auto size for sheet
+$sheet->setAutoSize(false);
+
+// Disable auto size for columns
+$sheet->setAutoSize(array(
+    'A', 'C'
+));
+
+
+默认配置设置在：export.php。
+
+列合并
+ 合并单元格
+ 要合并单元格，用->mergeCells($range)
+
+$sheet->mergeCells('A1:E1');
+
+ 合并列和行
+
+ 合并列和行用：->setMergeColumn($array)
+
+$sheet->setMergeColumn(array(
+    'columns' => array('A','B','C','D'),
+    'rows' => array(
+        array(2,3),
+        array(5,11),
+    )
+));
+
+
+列格式化
+
+ 要告诉Excel它应该如何解释某些列，可以用->setColumnFormat($array)
+
+// Format column as percentage
+$sheet->setColumnFormat(array(
+    'C' => '0%'
+));
+
+// Format a range with e.g. leading zeros
+$sheet->setColumnFormat(array(
+    'A2:K2' => '0000'
+));
+
+// Set multiple column formats
+$sheet->setColumnFormat(array(
+    'B' => '0',
+    'D' => '0.00',
+    'F' => '@',
+    'F' => 'yyyy-mm-dd',
+));
+
+自己去参考指南看可用于列格式化的列表。
+
+设用PHPExcel的本地方法
+
+ 可以在$excel 和 $sheet对象调用所有PHPExcel的本地方法。
+
+
+ 调用工作薄方法
+
+例子：
+
+// 获得工作薄默认风格
+$excel->getDefaultStyle();
+
+
+调用工作表方法
+
+例子：
+
+// 保护单元格
+$sheet->protectCells('A1', $password);
